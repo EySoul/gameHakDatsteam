@@ -2,6 +2,8 @@ import pygame
 import requests
 
 # УБРАТЬ ЛИШНИЙ ПРОБЕЛ В КОНЦЕ!
+from paint import GameRenderer
+
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
 prefix = "/api"
@@ -21,6 +23,7 @@ def send_move(bomber_id, path, bombs):
         json=data,
     )
     print(f"Response status: {response.status_code}, text: {response.text}")
+<<<<<<< HEAD
 
 
 # === НОВАЯ ФУНКЦИЯ: переключение юнита по цифре ===
@@ -51,6 +54,8 @@ def select_bomber_by_key(bombers, key):
     else:
         print(f"No bomber at index {index}")
     return None
+=======
+>>>>>>> main
 
 
 if __name__ == "__main__":
@@ -58,6 +63,9 @@ if __name__ == "__main__":
     map_size = data["map_size"]
     arena = data["arena"]
     bombers = data["bombers"]
+    enemies = data.get("enemies", [])
+    mobs = data.get("mobs", [])
+    bomber_id = bombers[0]["id"] if bombers else None
 
     pygame.init()
     screen_width = 800
@@ -65,6 +73,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Bomber Game Visualization")
 
+<<<<<<< HEAD
     BLACK = (0, 0, 0)
     WHITE = (255, 255, 255)
     RED = (255, 0, 0)
@@ -75,6 +84,11 @@ if __name__ == "__main__":
     PINK = (255, 192, 203)
 
     cell_size = 5
+=======
+    renderer = GameRenderer(screen_width, screen_height)
+    renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
+
+>>>>>>> main
     zoom = 1.0
     offset_x = 0
     offset_y = 0
@@ -100,8 +114,10 @@ if __name__ == "__main__":
 
                 elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                     zoom = min(zoom * 1.1, 5.0)
+                    renderer.set_zoom(zoom)
                 elif event.key == pygame.K_MINUS:
                     zoom = max(zoom / 1.1, 0.1)
+                    renderer.set_zoom(zoom)
                 elif event.key == pygame.K_SPACE:
                     bomber = next((b for b in bombers if b["id"] == bomber_id and b["alive"]), None)
                     if bomber:
@@ -147,6 +163,7 @@ if __name__ == "__main__":
                 dy = event.pos[1] - last_mouse[1]
                 offset_x += dx
                 offset_y += dy
+                renderer.set_offset(offset_x, offset_y)
                 last_mouse = event.pos
 
         # Обновление данных каждые 500 мс
@@ -157,11 +174,23 @@ if __name__ == "__main__":
                 map_size = data["map_size"]
                 arena = data["arena"]
                 bombers = data["bombers"]
+<<<<<<< HEAD
                 # ⚠️ НЕ СБРАСЫВАЕМ bomber_id! Пользователь сам выбирает.
+=======
+                enemies = data.get("enemies", [])
+                mobs = data.get("mobs", [])
+                bomber_id = bombers[0]["id"] if bombers else None
+                print(
+                    f"Updated bombers: {[f'{b["id"]}: {b["pos"]}' for b in bombers if b['alive']]}"
+                )
+                print(f"Controlled bomber ID: {bomber_id}")
+                renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
+>>>>>>> main
                 last_update = pygame.time.get_ticks()
             else:
                 print("Invalid data received")
 
+<<<<<<< HEAD
         # --- ОТРИСОВКА ---
         surface = pygame.Surface((map_size[0] * cell_size, map_size[1] * cell_size))
         surface.fill(BLACK)
@@ -198,6 +227,10 @@ if __name__ == "__main__":
         scaled_surface = pygame.transform.scale(surface, (scaled_width, scaled_height))
         screen.fill(BLACK)
         screen.blit(scaled_surface, (offset_x, offset_y))
+=======
+        renderer.draw(screen)
+
+>>>>>>> main
         pygame.display.flip()
 
     pygame.quit()
