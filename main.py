@@ -126,9 +126,7 @@ if __name__ == "__main__":
                 arena = data["arena"]
                 bombers = data["bombers"]
                 bomber_id = bombers[0]["id"] if bombers else None
-                print(
-                    f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
-                )
+                #print(f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}")
                 print(f"Controlled bomber ID: {bomber_id}")
                 last_update = pygame.time.get_ticks()
             else:
@@ -172,7 +170,7 @@ if __name__ == "__main__":
 
         # Draw bombers
         for bomber in bombers:
-            if bomber["id"] == bomber_id and bomber["alive"]:
+            if (bomber["id"] == bomber_id and bomber["alive"]):
                 x, y = bomber["pos"]
                 pygame.draw.circle(
                     surface,
