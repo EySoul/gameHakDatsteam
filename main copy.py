@@ -1,6 +1,8 @@
 import pygame
 import requests
 
+from paint import GameRenderer
+
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
 prefix = "/api"
@@ -37,17 +39,8 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Bomber Game Visualization")
 
-    # Colors
-    BLACK = (0, 0, 0)
-    WHITE = (255, 255, 255)
-    RED = (255, 0, 0)
-    BLUE = (0, 0, 255)
-    GREEN = (0, 255, 0)
-    GRAY = (128, 128, 128)
-    LIGHT_GRAY = (200, 200, 200)
-    PINK = (255, 192, 203)
-    # Cell size
-    cell_size = 5  # 215 * 3 = 645, fits in 800
+    renderer = GameRenderer(screen_width, screen_height)
+
     zoom = 1.0
     offset_x = 0
     offset_y = 0
@@ -65,8 +58,10 @@ if __name__ == "__main__":
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                     zoom = min(zoom * 1.1, 5.0)
+                    renderer.set_zoom(zoom)
                 elif event.key == pygame.K_MINUS:
                     zoom = max(zoom / 1.1, 0.1)
+                    renderer.set_zoom(zoom)
                 elif event.key == pygame.K_SPACE:
                     bomber = next((b for b in bombers if b["id"] == bomber_id), None)
                     if bomber:
@@ -115,6 +110,7 @@ if __name__ == "__main__":
                 dy = event.pos[1] - last_mouse[1]
                 offset_x += dx
                 offset_y += dy
+                renderer.set_offset(offset_x, offset_y)
                 last_mouse = event.pos
 
         # Update data every 0.5 seconds
@@ -130,65 +126,15 @@ if __name__ == "__main__":
                     f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
                 )
                 print(f"Controlled bomber ID: {bomber_id}")
+                renderer.set_map_size(map_size)
+                renderer.set_arena(arena)
+                renderer.set_bombers(bombers)
+                renderer.set_bomber_id(bomber_id)
                 last_update = pygame.time.get_ticks()
             else:
                 print("Invalid data received, skipping update")
 
-        # Create surface for drawing
-        surface = pygame.Surface((map_size[0] * cell_size, map_size[1] * cell_size))
-        surface.fill(BLACK)
-
-        # Draw grid
-        for x in range(0, map_size[0] * cell_size + 1, cell_size):
-            pygame.draw.line(surface, LIGHT_GRAY, (x, 0), (x, map_size[1] * cell_size))
-        for y in range(0, map_size[1] * cell_size + 1, cell_size):
-            pygame.draw.line(surface, LIGHT_GRAY, (0, y), (map_size[0] * cell_size, y))
-
-        # Draw obstacles
-        for obs in arena["obstacles"]:
-            x, y = obs
-            pygame.draw.rect(
-                surface, PINK, (x * cell_size, y * cell_size, cell_size, cell_size)
-            )
-
-        # Draw walls
-        for wall in arena["walls"]:
-            x, y = wall
-            pygame.draw.rect(
-                surface, WHITE, (x * cell_size, y * cell_size, cell_size, cell_size)
-            )
-
-        # Draw bombs
-        print(f"Bombs: {arena['bombs']}")
-        for bomb in arena["bombs"]:
-            if isinstance(bomb, dict) and "pos" in bomb:
-                x, y = bomb["pos"]
-                pygame.draw.circle(
-                    surface,
-                    RED,
-                    (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2),
-                    cell_size // 2,
-                )
-
-        # Draw bombers
-        for bomber in bombers:
-            if bomber["id"] == bomber_id and bomber["alive"]:
-                x, y = bomber["pos"]
-                pygame.draw.circle(
-                    surface,
-                    RED,
-                    (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2),
-                    cell_size // 2,
-                )
-
-        # Scale the surface
-        scaled_width = int(map_size[0] * cell_size * zoom)
-        scaled_height = int(map_size[1] * cell_size * zoom)
-        scaled_surface = pygame.transform.scale(surface, (scaled_width, scaled_height))
-
-        # Blit to screen
-        screen.fill(BLACK)
-        screen.blit(scaled_surface, (offset_x, offset_y))
+        renderer.draw(screen)
 
         pygame.display.flip()
 
