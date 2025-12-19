@@ -10,6 +10,7 @@ prefix = "/api"
 
 def get_arena():
     response = requests.get(f"{domen}{prefix}/arena", headers={"X-Auth-Token": token})
+
     return response.json()
 
 
@@ -22,6 +23,7 @@ def send_move(bomber_id, path, bombs):
         json=data,
     )
     print(f"Response status: {response.status_code}, text: {response.text}")
+    # No JSON parsing to avoid decode errors
 
 
 if __name__ == "__main__":
@@ -121,10 +123,13 @@ if __name__ == "__main__":
                 bombers = data["bombers"]
                 bomber_id = bombers[0]["id"] if bombers else None
                 print(
-                    f"Updated bombers: {[f'{b["id"]}: {b["pos"]}' for b in bombers if b['alive']]}"
+                    f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
                 )
                 print(f"Controlled bomber ID: {bomber_id}")
-                renderer.update_data(map_size, arena, bombers, bomber_id)
+                renderer.set_map_size(map_size)
+                renderer.set_arena(arena)
+                renderer.set_bombers(bombers)
+                renderer.set_bomber_id(bomber_id)
                 last_update = pygame.time.get_ticks()
             else:
                 print("Invalid data received, skipping update")
