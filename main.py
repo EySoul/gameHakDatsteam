@@ -1,6 +1,7 @@
 import pygame
 import requests
 
+# УБРАТЬ ЛИШНИЙ ПРОБЕЛ В КОНЦЕ!
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
 prefix = "/api"
@@ -8,7 +9,6 @@ prefix = "/api"
 
 def get_arena():
     response = requests.get(f"{domen}{prefix}/arena", headers={"X-Auth-Token": token})
-
     return response.json()
 
 
@@ -21,7 +21,36 @@ def send_move(bomber_id, path, bombs):
         json=data,
     )
     print(f"Response status: {response.status_code}, text: {response.text}")
-    # No JSON parsing to avoid decode errors
+
+
+# === НОВАЯ ФУНКЦИЯ: переключение юнита по цифре ===
+def select_bomber_by_key(bombers, key):
+    """
+    Выбирает юнита по нажатой цифровой клавише (1–6).
+    Возвращает его ID или None, если недоступен.
+    """
+    digit_map = {
+        pygame.K_1: 0,
+        pygame.K_2: 1,
+        pygame.K_3: 2,
+        pygame.K_4: 3,
+        pygame.K_5: 4,
+        pygame.K_6: 5,
+    }
+    if key not in digit_map:
+        return None
+
+    index = digit_map[key]
+    if index < len(bombers):
+        bomber = bombers[index]
+        if bomber["alive"]:
+            print(f"Selected bomber {index + 1}: ID={bomber['id']}, pos={bomber['pos']}")
+            return bomber["id"]
+        else:
+            print(f"Bomber {index + 1} is dead!")
+    else:
+        print(f"No bomber at index {index}")
+    return None
 
 
 if __name__ == "__main__":
@@ -30,14 +59,12 @@ if __name__ == "__main__":
     arena = data["arena"]
     bombers = data["bombers"]
 
-    # Initialize Pygame
     pygame.init()
     screen_width = 800
     screen_height = 800
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Bomber Game Visualization")
 
-    # Colors
     BLACK = (0, 0, 0)
     WHITE = (255, 255, 255)
     RED = (255, 0, 0)
@@ -46,8 +73,8 @@ if __name__ == "__main__":
     GRAY = (128, 128, 128)
     LIGHT_GRAY = (200, 200, 200)
     PINK = (255, 192, 203)
-    # Cell size
-    cell_size = 5  # 215 * 3 = 645, fits in 800
+
+    cell_size = 5
     zoom = 1.0
     offset_x = 0
     offset_y = 0
@@ -55,32 +82,38 @@ if __name__ == "__main__":
     last_mouse = (0, 0)
     last_update = 0
     bombs = []
-    bomber_id = None
+    bomber_id = None  # будет устанавливаться вручную
 
     running = True
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
+                # === ПЕРЕКЛЮЧЕНИЕ ЮНИТОВ ПО 1-6 ===
+                if event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6]:
+                    new_id = select_bomber_by_key(bombers, event.key)
+                    if new_id is not None:
+                        bomber_id = new_id
+                        bombs = []  # сбросить бомбы текущего юнита
+
+                elif event.key == pygame.K_PLUS or event.key == pygame.K_EQUALS:
                     zoom = min(zoom * 1.1, 5.0)
                 elif event.key == pygame.K_MINUS:
                     zoom = max(zoom / 1.1, 0.1)
                 elif event.key == pygame.K_SPACE:
-                    bomber = next((b for b in bombers if b["id"] == bomber_id), None)
+                    bomber = next((b for b in bombers if b["id"] == bomber_id and b["alive"]), None)
                     if bomber:
                         pos = bomber["pos"]
                         bombs = [pos]
                         send_move(bomber_id, [], bombs)
                         print(f"Placing bomb at {pos}")
-                elif bomber_id and event.key in [
-                    pygame.K_UP,
-                    pygame.K_DOWN,
-                    pygame.K_LEFT,
-                    pygame.K_RIGHT,
-                ]:
-                    bomber = next((b for b in bombers if b["id"] == bomber_id), None)
+                    else:
+                        print("No active bomber selected or bomber is dead")
+
+                elif bomber_id and event.key in [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
+                    bomber = next((b for b in bombers if b["id"] == bomber_id and b["alive"]), None)
                     if bomber:
                         pos = bomber["pos"]
                         new_pos = list(pos)
@@ -92,19 +125,18 @@ if __name__ == "__main__":
                             new_pos[0] -= 1
                         elif event.key == pygame.K_RIGHT:
                             new_pos[0] += 1
-                        if (
-                            0 <= new_pos[0] < map_size[0]
-                            and 0 <= new_pos[1] < map_size[1]
-                            and new_pos != pos
-                        ):
+
+                        if 0 <= new_pos[0] < map_size[0] and 0 <= new_pos[1] < map_size[1]:
                             path = [pos, new_pos]
                             send_move(bomber_id, path, bombs)
+                            print(f"Moving to {new_pos}")
                         else:
-                            print(
-                                f"Controlled bomber {bomber_id} not found or not alive"
-                            )
+                            print("Move out of bounds")
+                    else:
+                        print("Controlled bomber not found or dead")
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 1:  # Left mouse button
+                if event.button == 1:
                     dragging = True
                     last_mouse = event.pos
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -117,7 +149,7 @@ if __name__ == "__main__":
                 offset_y += dy
                 last_mouse = event.pos
 
-        # Update data every 0.5 seconds
+        # Обновление данных каждые 500 мс
         if pygame.time.get_ticks() - last_update > 500:
             new_data = get_arena()
             if "map_size" in new_data:
@@ -125,69 +157,47 @@ if __name__ == "__main__":
                 map_size = data["map_size"]
                 arena = data["arena"]
                 bombers = data["bombers"]
-                bomber_id = bombers[0]["id"] if bombers else None
-                #print(f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}")
-                print(f"Controlled bomber ID: {bomber_id}")
+                # ⚠️ НЕ СБРАСЫВАЕМ bomber_id! Пользователь сам выбирает.
                 last_update = pygame.time.get_ticks()
             else:
-                print("Invalid data received, skipping update")
+                print("Invalid data received")
 
-        # Create surface for drawing
+        # --- ОТРИСОВКА ---
         surface = pygame.Surface((map_size[0] * cell_size, map_size[1] * cell_size))
         surface.fill(BLACK)
 
-        # Draw grid
+        # Сетка
         for x in range(0, map_size[0] * cell_size + 1, cell_size):
             pygame.draw.line(surface, LIGHT_GRAY, (x, 0), (x, map_size[1] * cell_size))
         for y in range(0, map_size[1] * cell_size + 1, cell_size):
             pygame.draw.line(surface, LIGHT_GRAY, (0, y), (map_size[0] * cell_size, y))
 
-        # Draw obstacles
+        # Объекты
         for obs in arena["obstacles"]:
             x, y = obs
-            pygame.draw.rect(
-                surface, PINK, (x * cell_size, y * cell_size, cell_size, cell_size)
-            )
-
-        # Draw walls
+            pygame.draw.rect(surface, PINK, (x * cell_size, y * cell_size, cell_size, cell_size))
         for wall in arena["walls"]:
             x, y = wall
-            pygame.draw.rect(
-                surface, WHITE, (x * cell_size, y * cell_size, cell_size, cell_size)
-            )
-
-        # Draw bombs
-        print(f"Bombs: {arena['bombs']}")
+            pygame.draw.rect(surface, WHITE, (x * cell_size, y * cell_size, cell_size, cell_size))
         for bomb in arena["bombs"]:
             if isinstance(bomb, dict) and "pos" in bomb:
                 x, y = bomb["pos"]
-                pygame.draw.circle(
-                    surface,
-                    RED,
-                    (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2),
-                    cell_size // 2,
-                )
+                pygame.draw.circle(surface, RED, (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2), cell_size // 2)
 
-        # Draw bombers
+        # Юниты: выделить текущего красным, остальных — синим
         for bomber in bombers:
-            if (bomber["id"] == bomber_id and bomber["alive"]):
-                x, y = bomber["pos"]
-                pygame.draw.circle(
-                    surface,
-                    RED,
-                    (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2),
-                    cell_size // 2,
-                )
+            if not bomber["alive"]:
+                continue
+            x, y = bomber["pos"]
+            color = RED if bomber["id"] == bomber_id else BLUE
+            pygame.draw.circle(surface, color, (x * cell_size + cell_size // 2, y * cell_size + cell_size // 2), cell_size // 2)
 
-        # Scale the surface
+        # Масштабирование и отображение
         scaled_width = int(map_size[0] * cell_size * zoom)
         scaled_height = int(map_size[1] * cell_size * zoom)
         scaled_surface = pygame.transform.scale(surface, (scaled_width, scaled_height))
-
-        # Blit to screen
         screen.fill(BLACK)
         screen.blit(scaled_surface, (offset_x, offset_y))
-
         pygame.display.flip()
 
     pygame.quit()
