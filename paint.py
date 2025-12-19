@@ -104,12 +104,12 @@ class GameRenderer:
             visible_enemies = [
                 e
                 for e in self.enemies
-                if min_x <= e[0] <= max_x and min_y <= e[1] <= max_y
+                if min_x <= e["pos"][0] <= max_x and min_y <= e["pos"][1] <= max_y
             ]
             visible_mobs = [
                 m
                 for m in self.mobs
-                if min_x <= m[0] <= max_x and min_y <= m[1] <= max_y
+                if min_x <= m["pos"][0] <= max_x and min_y <= m["pos"][1] <= max_y
             ]
             mini_surface = pygame.Surface((7 * self.cell_size, 7 * self.cell_size))
             mini_surface.fill(self.WHITE)
@@ -191,8 +191,8 @@ class GameRenderer:
                 )
             # Draw enemies
             for e in visible_enemies:
-                rx = e[0] - min_x
-                ry = e[1] - min_y
+                rx = e["pos"][0] - min_x
+                ry = e["pos"][1] - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.RED,
@@ -205,8 +205,8 @@ class GameRenderer:
                 )
             # Draw mobs
             for m in visible_mobs:
-                rx = m[0] - min_x
-                ry = m[1] - min_y
+                rx = m["pos"][0] - min_x
+                ry = m["pos"][1] - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.PURPLE,
