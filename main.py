@@ -29,6 +29,9 @@ if __name__ == "__main__":
     map_size = data["map_size"]
     arena = data["arena"]
     bombers = data["bombers"]
+    enemies = data.get("enemies", [])
+    mobs = data.get("mobs", [])
+    bomber_id = bombers[0]["id"] if bombers else None
 
     # Initialize Pygame
     pygame.init()
@@ -38,6 +41,7 @@ if __name__ == "__main__":
     pygame.display.set_caption("Bomber Game Visualization")
 
     renderer = GameRenderer(screen_width, screen_height)
+    renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
 
     zoom = 1.0
     offset_x = 0
@@ -119,12 +123,14 @@ if __name__ == "__main__":
                 map_size = data["map_size"]
                 arena = data["arena"]
                 bombers = data["bombers"]
+                enemies = data.get("enemies", [])
+                mobs = data.get("mobs", [])
                 bomber_id = bombers[0]["id"] if bombers else None
                 print(
                     f"Updated bombers: {[f'{b["id"]}: {b["pos"]}' for b in bombers if b['alive']]}"
                 )
                 print(f"Controlled bomber ID: {bomber_id}")
-                renderer.update_data(map_size, arena, bombers, bomber_id)
+                renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
                 last_update = pygame.time.get_ticks()
             else:
                 print("Invalid data received, skipping update")
