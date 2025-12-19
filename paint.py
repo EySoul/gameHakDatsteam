@@ -105,12 +105,17 @@ class GameRenderer:
                 for b in self.game_state.bombers.values()
                 if b.alive and min_x <= b.pos.x <= max_x and min_y <= b.pos.y <= max_y
             ]
+            visible_enemies = [
+                e
+                for e in self.game_state.enemies
+                if min_x <= e.pos.x <= max_x and min_y <= e.pos.y <= max_y
+            ]
 
             # Filter visible mobs
             visible_mobs = [
-                mob
-                for mob in self.game_state.mobs
-                if min_x <= mob.pos.x <= max_x and min_y <= mob.pos.y <= max_y
+                m
+                for m in self.game_state.mobs
+                if min_x <= m.pos.x <= max_x and min_y <= m.pos.y <= max_y
             ]
 
             mini_surface = pygame.Surface((7 * self.cell_size, 7 * self.cell_size))
@@ -197,11 +202,24 @@ class GameRenderer:
                         size,
                     ),
                 )
-
+            # Draw enemies
+            for e in visible_enemies:
+                rx = e["pos"][0] - min_x
+                ry = e["pos"][1] - min_y
+                pygame.draw.rect(
+                    mini_surface,
+                    self.RED,
+                    (
+                        rx * self.cell_size + offset,
+                        ry * self.cell_size + offset,
+                        size,
+                        size,
+                    ),
+                )
             # Draw mobs
             for m in visible_mobs:
-                rx = m.pos.x - min_x
-                ry = m.pos.y - min_y
+                rx = m["pos"][0] - min_x
+                ry = m["pos"][1] - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.PURPLE,
