@@ -56,7 +56,7 @@ class GameRenderer:
         surface = pygame.Surface(
             (self.map_size[0] * self.cell_size, self.map_size[1] * self.cell_size)
         )
-        surface.fill(self.BLACK)
+        surface.fill(self.WHITE)
 
         # Draw grid
         for x in range(0, self.map_size[0] * self.cell_size + 1, self.cell_size):
@@ -95,7 +95,7 @@ class GameRenderer:
             x, y = wall
             pygame.draw.rect(
                 surface,
-                self.WHITE,
+                self.BLACK,
                 (
                     x * self.cell_size,
                     y * self.cell_size,
@@ -142,5 +142,5 @@ class GameRenderer:
         scaled_surface = pygame.transform.scale(surface, (scaled_width, scaled_height))
 
         # Blit to screen
-        screen.fill(self.BLACK)
+        screen.fill(self.WHITE)
         screen.blit(scaled_surface, (self.offset_x, self.offset_y))
