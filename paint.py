@@ -2,7 +2,7 @@ import pygame
 
 
 class GameRenderer:
-    def __init__(self, screen_width, screen_height, cell_size=5):
+    def __init__(self, screen_width, screen_height, cell_size=20):
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.cell_size = cell_size
@@ -21,6 +21,7 @@ class GameRenderer:
         self.GREEN = (0, 255, 0)
         self.GRAY = (128, 128, 128)
         self.LIGHT_GRAY = (200, 200, 200)
+        self.DARK_GRAY = (100, 100, 100)
         self.PINK = (255, 192, 203)
 
     def set_map_size(self, map_size):
@@ -60,11 +61,19 @@ class GameRenderer:
         # Draw grid
         for x in range(0, self.map_size[0] * self.cell_size + 1, self.cell_size):
             pygame.draw.line(
-                surface, self.LIGHT_GRAY, (x, 0), (x, self.map_size[1] * self.cell_size)
+                surface,
+                self.DARK_GRAY,
+                (x, 0),
+                (x, self.map_size[1] * self.cell_size),
+                1,
             )
         for y in range(0, self.map_size[1] * self.cell_size + 1, self.cell_size):
             pygame.draw.line(
-                surface, self.LIGHT_GRAY, (0, y), (self.map_size[0] * self.cell_size, y)
+                surface,
+                self.DARK_GRAY,
+                (0, y),
+                (self.map_size[0] * self.cell_size, y),
+                1,
             )
 
         # Draw obstacles
@@ -106,21 +115,25 @@ class GameRenderer:
                         x * self.cell_size + self.cell_size // 2,
                         y * self.cell_size + self.cell_size // 2,
                     ),
-                    self.cell_size // 2,
+                    self.cell_size // 4,
                 )
 
         # Draw bombers
         for bomber in self.bombers:
-            if bomber["id"] == self.bomber_id and bomber["alive"]:
+            if bomber["alive"]:
                 x, y = bomber["pos"]
-                pygame.draw.circle(
+                color = self.GREEN if bomber["id"] == self.bomber_id else self.BLUE
+                size = self.cell_size - 2
+                offset = (self.cell_size - size) // 2
+                pygame.draw.rect(
                     surface,
-                    self.RED,
+                    color,
                     (
-                        x * self.cell_size + self.cell_size // 2,
-                        y * self.cell_size + self.cell_size // 2,
+                        x * self.cell_size + offset,
+                        y * self.cell_size + offset,
+                        size,
+                        size,
                     ),
-                    self.cell_size // 2,
                 )
 
         # Scale the surface
