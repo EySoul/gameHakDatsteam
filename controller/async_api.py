@@ -3,7 +3,7 @@ import json
 import logging
 import asyncio
 import aiohttp
-
+from .rate_limiter import RateLimiter
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
 prefix = "api"
@@ -23,8 +23,10 @@ logging.basicConfig(
 
 HEADERS = {"X-Auth-Token": token, "Content-Type": "application/json"}
 
+limiter = RateLimiter(max_calls=3, period=1.0)
 
 async def get_arena_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{ARENA_ENDPOINT}", headers=HEADERS) as response:
@@ -38,6 +40,7 @@ async def get_arena_async():
 
 
 async def get_booster_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{BOOSTER_ENDPOINT}", headers=HEADERS) as response:
@@ -53,6 +56,7 @@ async def get_booster_async():
 async def improve_booster_async(booster: str):
     payload = {"booster": booster}
 
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(
@@ -68,6 +72,7 @@ async def improve_booster_async(booster: str):
 
 
 async def get_logs_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{LOGS_ENDPOINT}", headers=HEADERS) as response:
@@ -101,6 +106,7 @@ async def move_async(move_data: dict):
             ]
         }
     '''
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(
@@ -109,13 +115,20 @@ async def move_async(move_data: dict):
                 json=move_data
             ) as response:
                 response_data = await response.json()
-                logging.info(f"Я из {MOVE_ENDPOINT} Ответ: {response_data}")    
+                logging.info(
+                    f"""
+                        Я из {MOVE_ENDPOINT}
+                        Запрос: {move_data}
+                        Ответ: {response_data}
+                    """
+                ) 
         except aiohttp.ClientError as e:
             logging.error(f"Ошибка в {MOVE_ENDPOINT} при '{move_data}': {str(e)}")
             return None
 
 
 async def get_rounds_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{ROUNDS_ENDPOINT}", headers=HEADERS) as response:
