@@ -3,6 +3,7 @@ import json
 import logging
 import asyncio
 import aiohttp
+from rate_limiter import RateLimiter
 
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
@@ -22,9 +23,10 @@ logging.basicConfig(
 )
 
 HEADERS = {"X-Auth-Token": token, "Content-Type": "application/json"}
-
+limiter = RateLimiter(max_calls=3, period=1.0)
 
 async def get_arena_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{ARENA_ENDPOINT}", headers=HEADERS) as response:
@@ -38,6 +40,7 @@ async def get_arena_async():
 
 
 async def get_booster_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{BOOSTER_ENDPOINT}", headers=HEADERS) as response:
@@ -52,7 +55,7 @@ async def get_booster_async():
 
 async def improve_booster_async(booster: str):
     payload = {"booster": booster}
-
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(
@@ -68,6 +71,7 @@ async def improve_booster_async(booster: str):
 
 
 async def get_logs_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{LOGS_ENDPOINT}", headers=HEADERS) as response:
@@ -101,6 +105,7 @@ async def move_async(move_data: dict):
             ]
         }
     '''
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.post(
@@ -116,6 +121,7 @@ async def move_async(move_data: dict):
 
 
 async def get_rounds_async():
+    await limiter.wait()
     async with aiohttp.ClientSession() as session:
         try:
             async with session.get(f"{domen}/{prefix}/{ROUNDS_ENDPOINT}", headers=HEADERS) as response:
@@ -126,3 +132,26 @@ async def get_rounds_async():
         except aiohttp.ClientError as e:
             logging.error(f"Асинхронная ошибка {ROUNDS_ENDPOINT}: {e}")
             return None
+    
+
+if __name__ == "__main__":
+    async def main():
+        # Создаем задачи для параллельного выполнения
+        task1 = get_arena_async()
+        task2 = get_arena_async()
+        task3 = get_arena_async()
+        task4 = get_arena_async()
+        task5 = get_arena_async()
+        task6 = get_arena_async()
+        task7 = get_arena_async()
+        task8 = get_arena_async()
+        task9 = get_arena_async()
+        task10 = get_arena_async()
+        
+        # Запускаем обе задачи одновременно
+        results = await asyncio.gather(task1, task2, task3, task4, task5, task6, task7, task8, task9, task10)
+        return results
+    
+    # Запускаем ОДИН асинхронный цикл
+    asyncio.run(main())
+    
