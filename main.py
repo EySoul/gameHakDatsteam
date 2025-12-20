@@ -1,6 +1,7 @@
 import pygame
 import requests
 
+from models import Bomb, Bomber, GameState, Mob, Position
 from paint import GameRenderer
 
 domen = "https://games-test.datsteam.dev"
@@ -24,14 +25,79 @@ def send_move(bomber_id, path, bombs):
     print(f"Response status: {response.status_code}, text: {response.text}")
 
 
+def create_game_state_from_data(data):
+    """Convert raw API data to GameState object with proper model instances."""
+    # Create positions
+    obstacles = [Position(obs[0], obs[1]) for obs in data["arena"]["obstacles"]]
+    walls = [Position(wall[0], wall[1]) for wall in data["arena"]["walls"]]
+
+    # Create bombs
+    bombs = []
+    for bomb_data in data["arena"]["bombs"]:
+        if isinstance(bomb_data, dict) and "pos" in bomb_data:
+            pos = Position(bomb_data["pos"][0], bomb_data["pos"][1])
+            bomb = Bomb(
+                pos=pos,
+                timer=bomb_data.get("timer", 0),
+                radius=bomb_data.get("radius", 1),
+                owner=bomb_data.get("owner", ""),
+            )
+            bombs.append(bomb)
+
+    # Create bombers
+    bombers = {}
+    for bomber_data in data["bombers"]:
+        pos = Position(bomber_data["pos"][0], bomber_data["pos"][1])
+        bomber = Bomber(
+            id=bomber_data["id"],
+            alive=bomber_data["alive"],
+            pos=pos,
+            armor=bomber_data["armor"],
+            bombs_available=bomber_data["bombs_available"],
+            can_move=bomber_data["can_move"],
+            safe_time=bomber_data.get("safe_time", 0),
+        )
+        bombers[bomber.id] = bomber
+
+    # Create mobs
+    mobs = []
+    for mob_data in data.get("mobs", []):
+        pos = Position(mob_data[0], mob_data[1])
+        mob = Mob(
+            id="",  # API doesn't provide IDs for mobs
+            type="patrol",  # Default type
+            pos=pos,
+            safe_time=0,
+        )
+        mobs.append(mob)
+
+    # Handle enemies (if any)
+    enemies = data.get("enemies", [])
+
+    # Create game state
+    game_state = GameState(
+        player_name=data.get("player_name", ""),
+        round_id=data.get("round_id", ""),
+        map_size=data["map_size"],
+        raw_score=data.get("raw_score", 0),
+        bombers=bombers,
+        obstacles=obstacles,
+        walls=walls,
+        bombs=bombs,
+        mobs=mobs,
+        enemies=enemies,
+    )
+
+    return game_state
+
+
 if __name__ == "__main__":
     data = get_arena()
     map_size = data["map_size"]
-    arena = data["arena"]
-    bombers = data["bombers"]
-    enemies = data.get("enemies", [])
-    mobs = data.get("mobs", [])
-    bomber_id = bombers[0]["id"] if bombers else None
+    game_state = create_game_state_from_data(data)
+
+    # Get first bomber ID
+    bomber_id = next(iter(game_state.bombers)) if game_state.bombers else None
 
     # Initialize Pygame
     pygame.init()
@@ -41,7 +107,7 @@ if __name__ == "__main__":
     pygame.display.set_caption("Bomber Game Visualization")
 
     renderer = GameRenderer(screen_width, screen_height)
-    renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
+    renderer.update_data(map_size, game_state, bomber_id)
 
     zoom = 1.0
     offset_x = 0
@@ -50,7 +116,6 @@ if __name__ == "__main__":
     last_mouse = (0, 0)
     last_update = 0
     bombs = []
-    bomber_id = None
 
     running = True
     while running:
@@ -65,41 +130,45 @@ if __name__ == "__main__":
                     zoom = max(zoom / 1.1, 0.1)
                     renderer.set_zoom(zoom)
                 elif event.key == pygame.K_SPACE:
-                    bomber = next((b for b in bombers if b["id"] == bomber_id), None)
-                    if bomber:
-                        pos = bomber["pos"]
-                        bombs = [pos]
+                    bomber = (
+                        game_state.get_bomber_by_id(bomber_id) if game_state else None
+                    )
+                    if bomber and bomber.alive:
+                        pos = bomber.pos
+                        bombs = [(pos.x, pos.y)]
                         send_move(bomber_id, [], bombs)
-                        print(f"Placing bomb at {pos}")
+                        print(f"Placing bomb at ({pos.x}, {pos.y})")
                 elif bomber_id and event.key in [
                     pygame.K_UP,
                     pygame.K_DOWN,
                     pygame.K_LEFT,
                     pygame.K_RIGHT,
                 ]:
-                    bomber = next((b for b in bombers if b["id"] == bomber_id), None)
-                    if bomber:
-                        pos = bomber["pos"]
-                        new_pos = list(pos)
+                    bomber = (
+                        game_state.get_bomber_by_id(bomber_id) if game_state else None
+                    )
+                    if bomber and bomber.alive:
+                        pos = bomber.pos
+                        new_pos = Position(pos.x, pos.y)
                         if event.key == pygame.K_UP:
-                            new_pos[1] -= 1
+                            new_pos.y -= 1
                         elif event.key == pygame.K_DOWN:
-                            new_pos[1] += 1
+                            new_pos.y += 1
                         elif event.key == pygame.K_LEFT:
-                            new_pos[0] -= 1
+                            new_pos.x -= 1
                         elif event.key == pygame.K_RIGHT:
-                            new_pos[0] += 1
+                            new_pos.x += 1
+
+                        # Check bounds
                         if (
-                            0 <= new_pos[0] < map_size[0]
-                            and 0 <= new_pos[1] < map_size[1]
-                            and new_pos != pos
+                            0 <= new_pos.x < map_size[0]
+                            and 0 <= new_pos.y < map_size[1]
+                            and (new_pos.x != pos.x or new_pos.y != pos.y)
                         ):
-                            path = [pos, new_pos]
+                            path = [(pos.x, pos.y), (new_pos.x, new_pos.y)]
                             send_move(bomber_id, path, bombs)
                         else:
-                            print(
-                                f"Controlled bomber {bomber_id} not found or not alive"
-                            )
+                            print(f"Invalid move for bomber {bomber_id}")
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left mouse button
                     dragging = True
@@ -121,16 +190,17 @@ if __name__ == "__main__":
             if "map_size" in new_data:
                 data = new_data
                 map_size = data["map_size"]
-                arena = data["arena"]
-                bombers = data["bombers"]
-                enemies = data.get("enemies", [])
-                mobs = data.get("mobs", [])
-                bomber_id = bombers[0]["id"] if bombers else None
+                game_state = create_game_state_from_data(data)
+                bomber_id = (
+                    next(iter(game_state.bombers)) if game_state.bombers else None
+                )
+
                 print(
-                    f"Updated bombers: {[f'{b["id"]}: {b["pos"]}' for b in bombers if b['alive']]}"
+                    f"Updated bombers: {[f'{b.id}: ({b.pos.x}, {b.pos.y})' for b in game_state.bombers.values() if b.alive]}"
                 )
                 print(f"Controlled bomber ID: {bomber_id}")
-                renderer.update_data(map_size, arena, bombers, bomber_id, enemies, mobs)
+
+                renderer.update_data(map_size, game_state, bomber_id)
                 last_update = pygame.time.get_ticks()
             else:
                 print("Invalid data received, skipping update")

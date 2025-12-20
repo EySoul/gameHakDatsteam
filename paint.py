@@ -1,5 +1,7 @@
 import pygame
 
+from models import Bomb, Bomber, GameState, Mob, Position
+
 
 class GameRenderer:
     def __init__(self, screen_width, screen_height, cell_size=20):
@@ -10,8 +12,7 @@ class GameRenderer:
         self.offset_x = 0
         self.offset_y = 0
         self.map_size = None
-        self.arena = None
-        self.bombers = None
+        self.game_state = None
         self.bomber_id = None
         # Colors
         self.BLACK = (0, 0, 0)
@@ -24,28 +25,20 @@ class GameRenderer:
         self.DARK_GRAY = (100, 100, 100)
         self.PINK = (255, 192, 203)
         self.PURPLE = (255, 0, 255)
-        self.enemies = []
-        self.mobs = []
 
     def set_map_size(self, map_size):
         self.map_size = map_size
 
-    def set_arena(self, arena):
-        self.arena = arena
-
-    def set_bombers(self, bombers):
-        self.bombers = bombers
+    def set_game_state(self, game_state):
+        self.game_state = game_state
 
     def set_bomber_id(self, bomber_id):
         self.bomber_id = bomber_id
 
-    def update_data(self, map_size, arena, bombers, bomber_id, enemies=None, mobs=None):
+    def update_data(self, map_size, game_state, bomber_id):
         self.map_size = map_size
-        self.arena = arena
-        self.bombers = bombers
+        self.game_state = game_state
         self.bomber_id = bomber_id
-        self.enemies = enemies or []
-        self.mobs = mobs or []
 
     def set_zoom(self, zoom):
         self.zoom = zoom
@@ -55,8 +48,9 @@ class GameRenderer:
         self.offset_y = offset_y
 
     def draw(self, screen):
-        if not self.map_size or not self.arena or not self.bombers:
+        if not self.map_size or not self.game_state:
             return
+
         screen.fill(self.BLACK)
         mini_size = 7 * self.cell_size
         gap = 20
@@ -68,51 +62,60 @@ class GameRenderer:
             (mini_size + gap, mini_size + gap),
             (2 * (mini_size + gap), mini_size + gap),
         ]
-        for i, bomber in enumerate(self.bombers):
-            if not bomber["alive"]:
+
+        # Get alive bombers for rendering
+        alive_bombers = [
+            bomber for bomber in self.game_state.bombers.values() if bomber.alive
+        ]
+
+        for i, bomber in enumerate(alive_bombers):
+            if not bomber.alive:
                 continue
-            bx, by = bomber["pos"]
+
+            bx, by = bomber.pos.x, bomber.pos.y
             min_x = max(0, bx - 3)
             max_x = min(self.map_size[0] - 1, bx + 3)
             min_y = max(0, by - 3)
             max_y = min(self.map_size[1] - 1, by + 3)
+
+            # Filter visible obstacles
             visible_obs = [
-                obs
-                for obs in self.arena["obstacles"]
-                if min_x <= obs[0] <= max_x and min_y <= obs[1] <= max_y
+                pos
+                for pos in self.game_state.obstacles
+                if min_x <= pos.x <= max_x and min_y <= pos.y <= max_y
             ]
+
+            # Filter visible walls
             visible_walls = [
-                wall
-                for wall in self.arena["walls"]
-                if min_x <= wall[0] <= max_x and min_y <= wall[1] <= max_y
+                pos
+                for pos in self.game_state.walls
+                if min_x <= pos.x <= max_x and min_y <= pos.y <= max_y
             ]
+
+            # Filter visible bombs
             visible_bombs = [
                 bomb
-                for bomb in self.arena["bombs"]
-                if isinstance(bomb, dict)
-                and "pos" in bomb
-                and min_x <= bomb["pos"][0] <= max_x
-                and min_y <= bomb["pos"][1] <= max_y
+                for bomb in self.game_state.bombs
+                if min_x <= bomb.pos.x <= max_x and min_y <= bomb.pos.y <= max_y
             ]
+
+            # Filter visible bombers
             visible_bombers = [
                 b
-                for b in self.bombers
-                if b["alive"]
-                and min_x <= b["pos"][0] <= max_x
-                and min_y <= b["pos"][1] <= max_y
+                for b in self.game_state.bombers.values()
+                if b.alive and min_x <= b.pos.x <= max_x and min_y <= b.pos.y <= max_y
             ]
-            visible_enemies = [
-                e
-                for e in self.enemies
-                if min_x <= e[0] <= max_x and min_y <= e[1] <= max_y
-            ]
+
+            # Filter visible mobs
             visible_mobs = [
-                m
-                for m in self.mobs
-                if min_x <= m[0] <= max_x and min_y <= m[1] <= max_y
+                mob
+                for mob in self.game_state.mobs
+                if min_x <= mob.pos.x <= max_x and min_y <= mob.pos.y <= max_y
             ]
+
             mini_surface = pygame.Surface((7 * self.cell_size, 7 * self.cell_size))
             mini_surface.fill(self.WHITE)
+
             # Draw grid
             for x in range(8):
                 pygame.draw.line(
@@ -130,10 +133,11 @@ class GameRenderer:
                     (7 * self.cell_size, y * self.cell_size),
                     1,
                 )
+
             # Draw obstacles
             for obs in visible_obs:
-                rx = obs[0] - min_x
-                ry = obs[1] - min_y
+                rx = obs.x - min_x
+                ry = obs.y - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.PINK,
@@ -144,10 +148,11 @@ class GameRenderer:
                         self.cell_size,
                     ),
                 )
+
             # Draw walls
             for wall in visible_walls:
-                rx = wall[0] - min_x
-                ry = wall[1] - min_y
+                rx = wall.x - min_x
+                ry = wall.y - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.BLACK,
@@ -158,10 +163,11 @@ class GameRenderer:
                         self.cell_size,
                     ),
                 )
+
             # Draw bombs
             for bomb in visible_bombs:
-                rx = bomb["pos"][0] - min_x
-                ry = bomb["pos"][1] - min_y
+                rx = bomb.pos.x - min_x
+                ry = bomb.pos.y - min_y
                 pygame.draw.circle(
                     mini_surface,
                     self.RED,
@@ -171,14 +177,16 @@ class GameRenderer:
                     ),
                     self.cell_size // 4,
                 )
+
             # Draw entities
             size = self.cell_size - 2
             offset = (self.cell_size - size) // 2
+
             # Draw bombers
             for b in visible_bombers:
-                rx = b["pos"][0] - min_x
-                ry = b["pos"][1] - min_y
-                color = self.GREEN if b["id"] == self.bomber_id else self.BLUE
+                rx = b.pos.x - min_x
+                ry = b.pos.y - min_y
+                color = self.GREEN if b.id == self.bomber_id else self.BLUE
                 pygame.draw.rect(
                     mini_surface,
                     color,
@@ -189,24 +197,11 @@ class GameRenderer:
                         size,
                     ),
                 )
-            # Draw enemies
-            for e in visible_enemies:
-                rx = e[0] - min_x
-                ry = e[1] - min_y
-                pygame.draw.rect(
-                    mini_surface,
-                    self.RED,
-                    (
-                        rx * self.cell_size + offset,
-                        ry * self.cell_size + offset,
-                        size,
-                        size,
-                    ),
-                )
+
             # Draw mobs
             for m in visible_mobs:
-                rx = m[0] - min_x
-                ry = m[1] - min_y
+                rx = m.pos.x - min_x
+                ry = m.pos.y - min_y
                 pygame.draw.rect(
                     mini_surface,
                     self.PURPLE,
@@ -217,6 +212,7 @@ class GameRenderer:
                         size,
                     ),
                 )
+
             if i < len(positions):
                 scaled_mini = pygame.transform.scale(
                     mini_surface,
