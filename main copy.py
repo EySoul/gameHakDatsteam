@@ -122,9 +122,9 @@ if __name__ == "__main__":
                 arena = data["arena"]
                 bombers = data["bombers"]
                 bomber_id = bombers[0]["id"] if bombers else None
-                print(
-                    f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
-                )
+                # print(
+                #     f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
+                # )
                 print(f"Controlled bomber ID: {bomber_id}")
                 renderer.set_map_size(map_size)
                 renderer.set_arena(arena)
