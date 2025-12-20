@@ -1,5 +1,6 @@
 import pygame
 import requests
+from algoritm import *
 
 domen = "https://games-test.datsteam.dev"
 token = "d4d94a5f-c6aa-49af-b547-13897fb0896a"
@@ -74,6 +75,30 @@ if __name__ == "__main__":
                         bombs = [pos]
                         send_move(bomber_id, [], bombs)
                         print(f"Placing bomb at {pos}")
+
+                elif event.key == pygame.K_f:
+                    if bomber_id is None:
+                        print("Select a bomber first (1-6)!")
+                        continue
+
+                    bomber = next((b for b in bombers if b["id"] == bomber_id and b["alive"]), None)
+                    if not bomber:
+                        print("Selected bomber is dead")
+                        continue
+
+                    # Передаём bomber напрямую — все атрибуты внутри!
+                    cmd = move_toward_obstacle_or_explore_with_speed(
+                        bomber=bomber,
+                        arena=arena,
+                        map_size=map_size,
+                        dt_seconds=0.5
+                    )
+                    if cmd:
+                        send_move(cmd["id"], cmd["path"], cmd["bombs"])
+                        print(f"Auto-move for {bomber_id}")
+                    else:
+                        print("No command generated")
+
                 elif bomber_id and event.key in [
                     pygame.K_UP,
                     pygame.K_DOWN,
@@ -127,7 +152,7 @@ if __name__ == "__main__":
                 bombers = data["bombers"]
                 bomber_id = bombers[0]["id"] if bombers else None
                 print(
-                    f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
+                    #f"Updated bombers: {[f'{b['id']}: {b['pos']}' for b in bombers if b['alive']]}"
                 )
                 print(f"Controlled bomber ID: {bomber_id}")
                 last_update = pygame.time.get_ticks()
